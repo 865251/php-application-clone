@@ -20,7 +20,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                sh "sudo docker build -t ${ECR_IMAGE} ."
+                sh "docker build -t ${ECR_IMAGE} ."
             }
         }
 
@@ -34,14 +34,14 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 echo 'Pushing Docker image to ECR...'
-                sh "sudo docker push ${ECR_IMAGE}"
+                sh "docker push ${ECR_IMAGE}"
             }
         }
 
         stage('Deploy Container') {
             steps {
                 echo 'Deploying Docker container from ECR image...'
-                sh "sudo docker run -d -p 8081:80 ${ECR_IMAGE}"
+                sh "docker run -d -p 8081:80 ${ECR_IMAGE}"
             }
         }
     }
