@@ -1,25 +1,48 @@
-node {
-    stage('Code Checkout') {
-        echo 'Code checkout from the git repo'
-        git 'https://github.com/saranya-sreedharan/php-application'
+pipeline {
+    agent any
+
+    environment {
+        ECR_REPO_NAME = 'my-php-application'
+        AWS_ACCOUNT_ID = '891377339969'
+        AWS_REGION = 'us-east-1' // change if different
+        IMAGE_TAG = '1.0'
+        ECR_IMAGE = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}"
     }
 
-    stage('Building the application') {
-        echo 'Moving inside the directory and then building the application'
-        sh 'sudo docker build -t sarus23/my-php-app:1.0 .'
-    }
+    stages {
+        stage('Code Checkout') {
+            steps {
+                echo 'Checking out code from GitHub...'
+                git 'https://github.com/865251/php-application-clone.git'
+            }
+        }
 
-    stage('Pushing docker image') {
-        echo 'Pushing docker image to Docker Hub'
-        def dockerHubCredentials = 'docker-hub-credentials'
-        withCredentials([usernamePassword(credentialsId: dockerHubCredentials, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-            sh 'sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
-            sh 'sudo docker push sarus23/my-php-app:1.0'
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                sh "docker build -t ${ECR_IMAGE} ."
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                echo 'Logging into Amazon ECR...'
+                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                echo 'Pushing Docker image to ECR...'
+                sh "docker push ${ECR_IMAGE}"
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                echo 'Deploying Docker container from ECR image...'
+                sh "docker run -d -p 8081:80 ${ECR_IMAGE}"
+            }
         }
     }
-    
-    stage ('Application Deployment'){
-        echo 'Deploying the application in the server'
-        sh 'docker run -d -p 8081:80 sarus23/my-php-app:1.0'
-    } 
 }
